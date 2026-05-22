@@ -3,6 +3,7 @@
 A champion recommendation system for League of Legends based on Machine Learning (LDA), matchup analysis, and team synergy evaluation.
 
 Draft progression matters: Recommendations naturally improve as the draft advances, don't hesitate to priority-pick early on strong comfort/prio picks rather than waiting for a "perfect counter".
+
 ---
 
 ## Quick Start
@@ -119,6 +120,6 @@ Built by Mokhtari Younes and Boussihmed Ayman, Emerald+ EUW players passionate a
 Feel free to reach out for feedback, contributions, or questions.
 
 
-GitHub: github.com/ayihmed-creator &  github.com/younswow
-Discord: youns1 & aylegrand
+GitHub: github.com/ayihmed-creator &  github.com/younswow  
+Discord: youns1 & aylegrand  
 Email: boussihmed@insa-toulouse.fr & ymokhtar@insa-toulouse.fr 
