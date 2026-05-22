@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LoL Draft Simulator - With Role-Aware Predictions</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0a1e2e;
+      --bg-secondary: #0f2c42;
+      --bg-tertiary: #1a3a52;
+      --text-primary: #e0e0e0;
+      --text-secondary: #a0a0a0;
+      --text-tertiary: #707070;
+      --border: rgba(255,255,255,0.1);
+      --border-strong: rgba(255,255,255,0.2);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --blue: #0a9fdc;
+      --blue-bg: rgba(10, 159, 220, 0.15);
+      --red: #d81e26;
+      --red-bg: rgba(216, 30, 38, 0.15);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #0a1e2e;
+        --bg-secondary: #0f2c42;
+        --bg-tertiary: #1a3a52;
+        --text-primary: #e0e0e0;
+        --text-secondary: #a0a0a0;
+        --text-tertiary: #707070;
+        --border: rgba(255,255,255,0.1);
+        --border-strong: rgba(255,255,255,0.2);
+        --blue: #0a9fdc;
+        --blue-bg: rgba(10, 159, 220, 0.15);
+        --red: #d81e26;
+        --red-bg: rgba(216, 30, 38, 0.15);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    h1 {
+      text-align: center;
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    .phase-label {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    .draft-wrapper {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .team-section {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .team-section.blue { border-top: 3px solid var(--blue); }
+    .team-section.red { border-top: 3px solid var(--red); }
+
+    .team-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .team-section.blue .team-title { color: var(--blue); }
+    .team-section.red .team-title { color: var(--red); }
+
+    .phase-group {
+      margin-bottom: 12px;
+    }
+
+    .phase-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .slot-container {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .slot {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slot.active {
+      border: 2px solid;
+      background: rgba(24, 95, 165, 0.1);
+    }
+
+    .team-section.blue .slot.active {
+      border-color: var(--blue);
+    }
+
+    .team-section.red .slot.active {
+      border-color: var(--red);
+    }
+
+    .slot.filled {
+      background: var(--bg-primary);
+      font-weight: 600;
+      font-size: 12px;
+      padding: 0;
+    }
+
+    .slot.filled img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: var(--radius-md);
+    }
+
+    .slot.filled .champ-label {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      font-size: 11px;
+      padding: 4px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .slot.ban::after { content: " [BAN]"; font-size: 9px; opacity: 0.6; }
+
+    .recommendations-section {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .recs-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .recs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .rec-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .rec-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--text-secondary);
+    }
+
+    .rec-card.active {
+      background: var(--blue-bg);
+      border-color: var(--blue);
+    }
+
+    .rec-role {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .rec-champ {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .rec-stats {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .rec-pct {
+      font-weight: 600;
+      color: var(--blue);
+    }
+
+    .search-section {
+      background: var(--bg-primary);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    #champ-search {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    #champ-search::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    #champ-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .champ-btn {
+      padding: 8px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .champ-btn:hover:not(.used) {
+      background: var(--bg-tertiary);
+      border-color: var(--text-secondary);
+    }
+
+    .champ-btn.used {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .btn.primary {
+      background: var(--blue);
+      color: white;
+      border-color: var(--blue);
+    }
+
+    .btn.primary:hover {
+      opacity: 0.9;
+    }
+
+    .step-indicator {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>League of Legends - Draft Simulator</h1>
+    <div class="phase-label">
+      <span id="turn-display">Blue to pick</span> &bullet;
+      <span id="phase-display">Ban Phase</span>
+    </div>
+
+    <!-- RECOMMENDATIONS (for active team/step) -->
+    <div class="recommendations-section" id="recommendations-section">
+      <div class="recs-title" id="recs-title-text">Model Suggestions by Role</div>
+      <div class="recs-grid" id="recs-grid"></div>
+    </div>
+
+    <!-- SEARCH & PICK -->
+    <div class="search-section">
+      <input type="text" id="champ-search" placeholder="Search champion... (type name or press Escape to clear)" />
+      <div id="champ-grid"></div>
+      <div class="controls">
+        <button class="btn primary" onclick="undo()">Undo</button>
+        <button class="btn" onclick="reset()">Reset Draft</button>
+      </div>
+    </div>
+
+    <!-- DRAFT STATE -->
+    <div class="draft-wrapper">
+      <!-- BLUE TEAM -->
+      <div class="team-section blue">
+        <div class="team-title">Blue Team</div>
+
+        <div class="phase-group">
+          <div class="phase-name">Bans (1-3)</div>
+          <div class="slot-container" id="blue-bans"></div>
+        </div>
+
+        <div class="phase-group">
+          <div class="phase-name">Picks (1-5)</div>
+          <div class="slot-container" id="blue-picks"></div>
+        </div>
+      </div>
+
+      <!-- RED TEAM -->
+      <div class="team-section red">
+        <div class="team-title">Red Team</div>
+
+        <div class="phase-group">
+          <div class="phase-name">Bans (1-3)</div>
+          <div class="slot-container" id="red-bans"></div>
+        </div>
+
+        <div class="phase-group">
+          <div class="phase-name">Picks (1-5)</div>
+          <div class="slot-container" id="red-picks"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-indicator">
+      <span id="step-indicator">Step 0 / 20</span>
+    </div>
+  </div>
+
+  <script>
+    // ─────────────────────────────────────────
+    //  DATA & STATE
+    // ─────────────────────────────────────────
+    const ROLES = ["TOP", "JGL", "MID", "ADC", "SUP"];
+
+    const CHAMPIONS = [
+      "Aatrox","Ahri","Akali","Akshan","Ambessa","Amumu","Annie","Aphelios","Ashe","AurelionSol",
+      "Azir","Bard","Blitzcrank","Brand","Braum","Briar","Caitlyn","Camille","Cassiopeia","Chogath",
+      "Corki","Darius","Diana","DrMundo","Draven","Ekko","Elise","Evelynn","Ezreal","Fiora",
+      "Fizz","Galio","Gangplank","Garen","Gnar","Gragas","Graves","Gwen","Hecarim","Heimerdinger",
+      "Illaoi","Irelia","Ivern","JarvanIV","Jayce","Jhin","Jinx","Kaisa","Kalista","Kassadin",
+      "Katarina","Kayle","Kayn","Kennen","Khazix","Kindred","KogMaw","KSante","Leblanc","LeeSin",
+      "Leona","Lissandra","Lulu","Lux","Malphite","Maokai","Milio","MissFortune","Mordekaiser","Morgana",
+      "Nami","Nautilus","Neeko","Nidalee","Nilah","Nocturne","Nunu","Olaf","Ornn","Pantheon",
+      "Poppy","Pyke","Qiyana","Quinn","Rammus","RekSai","Renata","Renekton","Rengar","Riven",
+      "Rumble","Ryze","Samira","Sejuani","Senna","Seraphine","Sett","Shaco","Shen","Shyvana",
+      "Singed","Sion","Sivir","Skarner","Smolder","Sona","Soraka","Swain","Sylas","Syndra",
+      "TahmKench","Taliyah","Talon","Taric","Teemo","Thresh","TwistedFate","Twitch","Udyr","Urgot",
+      "Varus","Vayne","Veigar","Velkoz","Vex","Viktor","Vladimir","Volibear","Warwick","Wukong",
+      "Xayah","Xerath","XinZhao","Yasuo","Yone","Yorick","Yuumi","Zac","Zed","Zeri",
+      "Ziggs","Zilean","Zoe","Zyra"
+    ];
+
+    const DRAFT_ORDER = [
+      // Ban round 1 (steps 0-4)
+      { step: 0,  team: "blue", type: "ban", idx: 0, phaseNum: 1 },
+      { step: 1,  team: "red",  type: "ban", idx: 0, phaseNum: 1 },
+      { step: 2,  team: "blue", type: "ban", idx: 1, phaseNum: 1 },
+      { step: 3,  team: "red",  type: "ban", idx: 1, phaseNum: 1 },
+      { step: 4,  team: "blue", type: "ban", idx: 2, phaseNum: 1 },
+      { step: 5,  team: "red",  type: "ban", idx: 2, phaseNum: 1 },
+      // Pick round 1 (steps 6-10)
+      { step: 6,  team: "blue", type: "pick", idx: 0, roleIdx: 0, phaseNum: 2 },
+      { step: 7,  team: "red",  type: "pick", idx: 0, roleIdx: 0, phaseNum: 2 },
+      { step: 8,  team: "red",  type: "pick", idx: 1, roleIdx: 1, phaseNum: 2 },
+      { step: 9,  team: "blue", type: "pick", idx: 1, roleIdx: 1, phaseNum: 2 },
+      { step: 10, team: "blue", type: "pick", idx: 2, roleIdx: 2, phaseNum: 2 },
+      // Ban round 2 (steps 11-14)
+      { step: 11, team: "red",  type: "ban", idx: 3, phaseNum: 3 },
+      { step: 12, team: "blue", type: "ban", idx: 3, phaseNum: 3 },
+      { step: 13, team: "red",  type: "ban", idx: 4, phaseNum: 3 },
+      { step: 14, team: "blue", type: "ban", idx: 4, phaseNum: 3 },
+      // Pick round 2 (steps 15-20)
+      { step: 15, team: "red",  type: "pick", idx: 2, roleIdx: 2, phaseNum: 4 },
+      { step: 16, team: "blue", type: "pick", idx: 3, roleIdx: 3, phaseNum: 4 },
+      { step: 17, team: "blue", type: "pick", idx: 4, roleIdx: 4, phaseNum: 4 },
+      { step: 18, team: "red",  type: "pick", idx: 3, roleIdx: 3, phaseNum: 4 },
+      { step: 19, team: "red",  type: "pick", idx: 4, roleIdx: 4, phaseNum: 4 },
+    ];
+
+    const PHASE_NAMES = [
+      "Blue ban 1", "Red ban 1", "Blue ban 2", "Red ban 2", "Blue ban 3", "Red ban 3",
+      "Blue pick (TOP)", "Red pick (TOP)", "Red pick (JGL)", "Blue pick (JGL)", "Blue pick (MID)",
+      "Red ban 4", "Blue ban 4", "Red ban 5", "Blue ban 5",
+      "Red pick (MID)", "Blue pick (ADC)", "Blue pick (SUP)", "Red pick (ADC)", "Red pick (SUP)"
+    ];
+
+    let state = {
+      step: 0,
+      blue: { picks: [], bans: [] },
+      red: { picks: [], bans: [] },
+      recs: {},
+      history: []
+    };
+
+    // api calls
+    async function getRecommendations() {
+      try {
+        const response = await fetch("/api/recommend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            step: state.step,
+            draft: state
+          })
+        });
+
+        if (!response.ok) {
+          console.error("API error:", response.status);
+          return [];
+        }
+
+        const data = await response.json();
+        return data.recommendations || [];
+      } catch (error) {
+        console.error("Fetch error:", error);
+        return [];
+      }
+    }
+
+    async function loadRecommendationsForCurrentState() {
+      
+      if (state.step >= DRAFT_ORDER.length) return [];
+      
+      try {
+        const response = await fetch("/api/recommend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            step: state.step,
+            draft: state
+          })
+        });
+
+        if (!response.ok) return [];
+        const data = await response.json();
+        return data.recommendations || [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    // actions
+    function getUsedChampions() {
+      const used = new Set();
+      state.blue.picks.forEach(c => { if (c) used.add(c); });
+      state.blue.bans.forEach(c => { if (c) used.add(c); });
+      state.red.picks.forEach(c => { if (c) used.add(c); });
+      state.red.bans.forEach(c => { if (c) used.add(c); });
+      return used;
+    }
+
+    async function selectChampion(champ) {
+      const used = getUsedChampions();
+      if (used.has(champ)) return;
+
+      if (state.step >= DRAFT_ORDER.length) return;
+
+      // save the state
+      state.history.push({
+        step: state.step,
+        blue: JSON.parse(JSON.stringify(state.blue)),
+        red: JSON.parse(JSON.stringify(state.red)),
+        recs: JSON.parse(JSON.stringify(state.recs))
+      });
+
+      const order = DRAFT_ORDER[state.step];
+
+      if (order.type === "ban") {
+        state[order.team].bans[order.idx] = champ;
+      } else {
+        state[order.team].picks[order.idx] = champ;
+      }
+
+      state.step++;
+
+      // recharge so we have update
+      state.recs = {};
+
+      render();
+    }
+
+    function undo() {
+      if (state.history.length === 0) return;
+      const snap = state.history.pop();
+      state.step = snap.step;
+      state.blue = snap.blue;
+      state.red = snap.red;
+      state.recs = snap.recs;
+      render();
+    }
+
+    function reset() {
+      state = {
+        step: 0,
+        blue: { picks: [], bans: [] },
+        red: { picks: [], bans: [] },
+        recs: {},
+        history: []
+      };
+      document.getElementById("champ-search").value = "";
+      render();
+    }
+
+    // render
+    function renderBans(team) {
+      const el = document.getElementById(`${team}-bans`);
+      el.innerHTML = "";
+      
+      for (let i = 0; i < 5; i++) {
+        const slot = document.createElement("div");
+        slot.className = "slot";
+
+        const isCurrentBan = state.step < DRAFT_ORDER.length &&
+          DRAFT_ORDER[state.step].team === team &&
+          DRAFT_ORDER[state.step].type === "ban" &&
+          DRAFT_ORDER[state.step].idx === i;
+
+        if (isCurrentBan) {
+          slot.classList.add("active");
+        }
+
+        if (state[team].bans[i]) {
+          const champ = state[team].bans[i];
+          const img = document.createElement("img");
+          img.src = `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${champ}_0.jpg`;
+          img.alt = champ;
+          img.onerror = () => img.style.opacity = "0.3";
+          
+          const label = document.createElement("div");
+          label.className = "champ-label";
+          label.textContent = champ;
+          
+          slot.appendChild(img);
+          slot.appendChild(label);
+          slot.classList.add("filled", "ban");
+        } else {
+          slot.textContent = i + 1;
+        }
+
+        el.appendChild(slot);
+      }
+    }
+
+    function renderPicksForTeam(team) {
+      const el = document.getElementById(`${team}-picks`);
+      el.innerHTML = "";
+
+      for (let i = 0; i < 5; i++) {
+        const slot = document.createElement("div");
+        slot.className = "slot";
+
+        const isCurrentPick = state.step < DRAFT_ORDER.length &&
+          DRAFT_ORDER[state.step].team === team &&
+          DRAFT_ORDER[state.step].type === "pick" &&
+          DRAFT_ORDER[state.step].idx === i;
+
+        if (isCurrentPick) {
+          slot.classList.add("active");
+        }
+
+        if (state[team].picks[i]) {
+          const champ = state[team].picks[i];
+          const img = document.createElement("img");
+          img.src = `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${champ}_0.jpg`;
+          img.alt = champ;
+          img.onerror = () => img.style.opacity = "0.3";
+          
+          const label = document.createElement("div");
+          label.className = "champ-label";
+          label.textContent = champ;
+          
+          slot.appendChild(img);
+          slot.appendChild(label);
+          slot.classList.add("filled");
+        } else {
+          const roleLabel = i < ROLES.length ? ROLES[i] : `Pick ${i + 1}`;
+          slot.textContent = roleLabel;
+        }
+
+        el.appendChild(slot);
+      }
+    }
+
+    function renderRecommendations() {
+      const el = document.getElementById("recs-grid");
+
+      if (state.step >= DRAFT_ORDER.length) {
+        document.getElementById("recommendations-section").style.display = "none";
+        return;
+      }
+
+      document.getElementById("recommendations-section").style.display = "block";
+
+      
+      if (!state.recs[state.step]) {
+        el.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: var(--text-tertiary);'>Calculating best picks...</p>";
+        
+        loadRecommendationsForCurrentState().then(recs => {
+          state.recs[state.step] = recs;
+          renderRecommendationsContent(el, recs);
+        });
+        return;
+      }
+
+      const recs = state.recs[state.step] || [];
+      renderRecommendationsContent(el, recs);
+    }
+
+    function renderRecommendationsContent(el, recs) {
+      el.innerHTML = "";
+
+      if (!recs || recs.length === 0) {
+        el.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: var(--text-tertiary);'>No valid recommendations</p>";
+        return;
+      }
+
+      recs.forEach(rec => {
+        const card = document.createElement("div");
+        card.className = "rec-card";
+        card.onclick = () => selectChampion(rec.name);
+
+        const role = rec.role || "?";
+        const html = `
+          <div class="rec-role">${role}</div>
+          <div class="rec-champ">${rec.name}</div>
+          <div class="rec-stats">
+            <span>Win:</span>
+            <span class="rec-pct">${rec.pct}%</span>
+          </div>
+        `;
+        card.innerHTML = html;
+        el.appendChild(card);
+      });
+    }
+
+    function renderChampGrid(filter = "") {
+      const used = getUsedChampions();
+      const el = document.getElementById("champ-grid");
+      el.innerHTML = "";
+
+      const filtered = CHAMPIONS.filter(c =>
+        !filter || c.toLowerCase().includes(filter.toLowerCase())
+      );
+
+      filtered.forEach(c => {
+        const btn = document.createElement("button");
+        btn.className = "champ-btn" + (used.has(c) ? " used" : "");
+        btn.textContent = c;
+        btn.onclick = () => selectChampion(c);
+        el.appendChild(btn);
+      });
+    }
+
+    function renderTurn() {
+      const el = document.getElementById("turn-display");
+      const phase = document.getElementById("phase-display");
+      const si = document.getElementById("step-indicator");
+      const recsTitle = document.getElementById("recs-title-text");
+
+      if (state.step >= DRAFT_ORDER.length) {
+        el.textContent = "Draft Complete";
+        phase.textContent = "All picks and bans finished";
+        si.textContent = "Step 20 / 20";
+        recsTitle.textContent = "Draft Complete!";
+        return;
+      }
+
+      const order = DRAFT_ORDER[state.step];
+      const teamName = order.team.charAt(0).toUpperCase() + order.team.slice(1);
+      const actionType = order.type.charAt(0).toUpperCase() + order.type.slice(1);
+
+      el.textContent = `${teamName} to ${order.type}`;
+      phase.textContent = PHASE_NAMES[state.step] || `Step ${state.step + 1}`;
+      si.textContent = `Step ${state.step + 1} / 20`;
+      
+      
+      if (order.type === "pick") {
+        recsTitle.textContent = `Suggestions for ${teamName} (Next ${order.type})`;
+      } else {
+        
+        let nextPickStep = state.step + 1;
+        while (nextPickStep < DRAFT_ORDER.length && DRAFT_ORDER[nextPickStep].type !== "pick") {
+          nextPickStep++;
+        }
+        if (nextPickStep < DRAFT_ORDER.length) {
+          const nextTeam = DRAFT_ORDER[nextPickStep].team.charAt(0).toUpperCase() + DRAFT_ORDER[nextPickStep].team.slice(1);
+          recsTitle.textContent = `Preparing for ${nextTeam}'s next pick...`;
+        } else {
+          recsTitle.textContent = "Model Suggestions";
+        }
+      }
+    }
+
+    function render() {
+      
+      renderBans("blue");
+      renderBans("red");
+
+      
+      renderPicksForTeam("blue");
+      renderPicksForTeam("red");
+
+      
+      renderRecommendations();
+
+      
+      renderChampGrid(document.getElementById("champ-search").value);
+
+    
+      renderTurn();
+    }
+
+    
+    document.getElementById("champ-search").addEventListener("input", e => {
+      renderChampGrid(e.target.value);
+    });
+
+    document.getElementById("champ-search").addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        e.target.value = "";
+        renderChampGrid("");
+      }
+    });
+
+    
+    (async () => {
+      render();
+      state.recs[0] = await getRecommendations();
+      render();
+    })();
+  </script>
+</body>
+</html>

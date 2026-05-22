@@ -1,0 +1,8 @@
+{
+  "n_features": 178,
+  "n_champions": 172,
+  "model_type": "Random Forest",
+  "best_auc": 0.5671135124992701,
+  "created": "2026-05-22 00:46:23.034971",
+  "version": "v7"
+}
