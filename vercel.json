@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app.py": {
+      "excludeFiles": "{*.ipynb,**/*.ipynb,*.pdf,get-pip.py,*.bak,__pycache__/**,.venv/**,test_*.py,debug_*.py,inspect_*.py,train_*.py,list_champions.py,extract_champions.py,draft_predictor.py,CHANGELOG.md,README.md}"
+    }
+  }
+}

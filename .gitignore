@@ -1,1 +1,5 @@
 lol_dataset_challenger_grandmaster_clean.csv
+
+.venv/
+__pycache__/
+.vercel/

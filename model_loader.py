@@ -4,7 +4,6 @@ import os
 import pickle
 import json
 import numpy as np
-import pandas as pd
 from pathlib import Path
 import warnings
 
@@ -71,7 +70,7 @@ def create_dummy_models():
         'n_features': n_features,
         'n_championsonsons': 160,
         'model_type': 'RandomForest',
-        'created': str(pd.Timestamp.now()),
+        'created': __import__('datetime').datetime.now().isoformat(),
     }
     
     with open(MODEL_CACHE['metadata'], 'w') as f:
