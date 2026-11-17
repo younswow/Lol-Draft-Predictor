@@ -398,23 +398,12 @@
     // ─────────────────────────────────────────
     const ROLES = ["TOP", "JGL", "MID", "ADC", "SUP"];
 
-    const CHAMPIONS = [
-      "Aatrox","Ahri","Akali","Akshan","Ambessa","Amumu","Annie","Aphelios","Ashe","AurelionSol",
-      "Azir","Bard","Blitzcrank","Brand","Braum","Briar","Caitlyn","Camille","Cassiopeia","Chogath",
-      "Corki","Darius","Diana","DrMundo","Draven","Ekko","Elise","Evelynn","Ezreal","Fiora",
-      "Fizz","Galio","Gangplank","Garen","Gnar","Gragas","Graves","Gwen","Hecarim","Heimerdinger",
-      "Illaoi","Irelia","Ivern","JarvanIV","Jayce","Jhin","Jinx","Kaisa","Kalista","Kassadin",
-      "Katarina","Kayle","Kayn","Kennen","Khazix","Kindred","KogMaw","KSante","Leblanc","LeeSin",
-      "Leona","Lissandra","Lulu","Lux","Malphite","Maokai","Milio","MissFortune","Mordekaiser","Morgana",
-      "Nami","Nautilus","Neeko","Nidalee","Nilah","Nocturne","Nunu","Olaf","Ornn","Pantheon",
-      "Poppy","Pyke","Qiyana","Quinn","Rammus","RekSai","Renata","Renekton","Rengar","Riven",
-      "Rumble","Ryze","Samira","Sejuani","Senna","Seraphine","Sett","Shaco","Shen","Shyvana",
-      "Singed","Sion","Sivir","Skarner","Smolder","Sona","Soraka","Swain","Sylas","Syndra",
-      "TahmKench","Taliyah","Talon","Taric","Teemo","Thresh","TwistedFate","Twitch","Udyr","Urgot",
-      "Varus","Vayne","Veigar","Velkoz","Vex","Viktor","Vladimir","Volibear","Warwick","Wukong",
-      "Xayah","Xerath","XinZhao","Yasuo","Yone","Yorick","Yuumi","Zac","Zed","Zeri",
-      "Ziggs","Zilean","Zoe","Zyra"
-    ];
+    // loaded from /api/champions (same vocabulary as the model)
+    let CHAMPIONS = [];
+    let CHAMP_ROLES = {};
+    // Data Dragon image ids that differ from Riot match-v5 names
+    const IMG_ID = { FiddleSticks: "Fiddlesticks" };
+    const imgUrl = c => `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${IMG_ID[c] || c}_0.jpg`;
 
     const DRAFT_ORDER = [
       // Ban round 1 (steps 0-4)
@@ -445,9 +434,9 @@
 
     const PHASE_NAMES = [
       "Blue ban 1", "Red ban 1", "Blue ban 2", "Red ban 2", "Blue ban 3", "Red ban 3",
-      "Blue pick (TOP)", "Red pick (TOP)", "Red pick (JGL)", "Blue pick (JGL)", "Blue pick (MID)",
+      "Blue pick 1", "Red pick 1", "Red pick 2", "Blue pick 2", "Blue pick 3",
       "Red ban 4", "Blue ban 4", "Red ban 5", "Blue ban 5",
-      "Red pick (MID)", "Blue pick (ADC)", "Blue pick (SUP)", "Red pick (ADC)", "Red pick (SUP)"
+      "Red pick 3", "Blue pick 4", "Blue pick 5", "Red pick 4", "Red pick 5"
     ];
 
     let state = {
@@ -588,7 +577,7 @@
         if (state[team].bans[i]) {
           const champ = state[team].bans[i];
           const img = document.createElement("img");
-          img.src = `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${champ}_0.jpg`;
+          img.src = imgUrl(champ);
           img.alt = champ;
           img.onerror = () => img.style.opacity = "0.3";
           
@@ -627,7 +616,7 @@
         if (state[team].picks[i]) {
           const champ = state[team].picks[i];
           const img = document.createElement("img");
-          img.src = `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${champ}_0.jpg`;
+          img.src = imgUrl(champ);
           img.alt = champ;
           img.onerror = () => img.style.opacity = "0.3";
           
@@ -639,8 +628,7 @@
           slot.appendChild(label);
           slot.classList.add("filled");
         } else {
-          const roleLabel = i < ROLES.length ? ROLES[i] : `Pick ${i + 1}`;
-          slot.textContent = roleLabel;
+          slot.textContent = `Pick ${i + 1}`;
         }
 
         el.appendChild(slot);
@@ -661,9 +649,11 @@
       if (!state.recs[state.step]) {
         el.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: var(--text-tertiary);'>Calculating best picks...</p>";
         
+        const askedStep = state.step;
         loadRecommendationsForCurrentState().then(recs => {
-          state.recs[state.step] = recs;
-          renderRecommendationsContent(el, recs);
+          state.recs[askedStep] = recs;
+          // ignore late answers if the user already moved on
+          if (state.step === askedStep) renderRecommendationsContent(el, recs);
         });
         return;
       }
@@ -685,12 +675,13 @@
         card.className = "rec-card";
         card.onclick = () => selectChampion(rec.name);
 
-        const role = rec.role || "?";
+        const order = DRAFT_ORDER[state.step];
+        const role = (order && order.type === "ban") ? `BAN · ${rec.role || "?"}` : (rec.role || "?");
         const html = `
           <div class="rec-role">${role}</div>
           <div class="rec-champ">${rec.name}</div>
           <div class="rec-stats">
-            <span>Win:</span>
+            <span>Score:</span>
             <span class="rec-pct">${rec.pct}%</span>
           </div>
         `;
@@ -790,8 +781,14 @@
 
     
     (async () => {
-      render();
-      state.recs[0] = await getRecommendations();
+      try {
+        const res = await fetch("/api/champions");
+        const list = await res.json();
+        CHAMPIONS = list.map(c => c.name);
+        list.forEach(c => { CHAMP_ROLES[c.name] = c.roles; });
+      } catch (e) {
+        console.error("Could not load champions", e);
+      }
       render();
     })();
   </script>
