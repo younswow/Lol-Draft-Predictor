@@ -24,14 +24,16 @@ except ImportError as e:
 
 import random
 
-app = Flask(__name__, static_folder=".")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# no static_folder: serving "." would expose the whole repo (code, model files)
+app = Flask(__name__, static_folder=None)
 
 
- 
 #  front
 @app.route("/")
 def index():
-    return send_from_directory(".", "draft_simulator.html")
+    return send_from_directory(BASE_DIR, "draft_simulator.html")
 
 
 # draft order (must match DRAFT_ORDER in draft_simulator.html)
