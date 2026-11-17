@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LoL Draft Simulator - With Role-Aware Predictions</title>
+  <title>LoL Draft Simulator</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -16,6 +16,7 @@
       --text-tertiary: #707070;
       --border: rgba(255,255,255,0.1);
       --border-strong: rgba(255,255,255,0.2);
+      --radius-sm: 6px;
       --radius-md: 8px;
       --radius-lg: 12px;
       --blue: #0a9fdc;
@@ -24,371 +25,334 @@
       --red-bg: rgba(216, 30, 38, 0.15);
     }
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg-primary: #0a1e2e;
-        --bg-secondary: #0f2c42;
-        --bg-tertiary: #1a3a52;
-        --text-primary: #e0e0e0;
-        --text-secondary: #a0a0a0;
-        --text-tertiary: #707070;
-        --border: rgba(255,255,255,0.1);
-        --border-strong: rgba(255,255,255,0.2);
-        --blue: #0a9fdc;
-        --blue-bg: rgba(10, 159, 220, 0.15);
-        --red: #d81e26;
-        --red-bg: rgba(216, 30, 38, 0.15);
-      }
-    }
+    html, body { height: 100%; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg-secondary);
       color: var(--text-primary);
-      min-height: 100vh;
-      padding: 16px;
-    }
-
-    .container { max-width: 1200px; margin: 0 auto; }
-
-    h1 {
-      text-align: center;
-      font-size: 22px;
-      margin-bottom: 4px;
-    }
-
-    .phase-label {
-      text-align: center;
-      font-size: 13px;
-      color: var(--text-secondary);
-      margin-bottom: 16px;
-    }
-
-    .draft-wrapper {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-bottom: 24px;
-    }
-
-    .team-section {
-      background: var(--bg-primary);
-      border-radius: var(--radius-lg);
-      padding: 16px;
-      border: 1px solid var(--border);
-    }
-
-    .team-section.blue { border-top: 3px solid var(--blue); }
-    .team-section.red { border-top: 3px solid var(--red); }
-
-    .team-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .team-section.blue .team-title { color: var(--blue); }
-    .team-section.red .team-title { color: var(--red); }
-
-    .phase-group {
-      margin-bottom: 12px;
-    }
-
-    .phase-name {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-    }
-
-    .slot-container {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-
-    .slot {
-      aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      font-size: 11px;
-      font-weight: 500;
-      cursor: default;
-      position: relative;
+      padding: 12px;
       overflow: hidden;
     }
 
-    .slot.active {
-      border: 2px solid;
-      background: rgba(24, 95, 165, 0.1);
-    }
-
-    .team-section.blue .slot.active {
-      border-color: var(--blue);
-    }
-
-    .team-section.red .slot.active {
-      border-color: var(--red);
-    }
-
-    .slot.filled {
-      background: var(--bg-primary);
-      font-weight: 600;
-      font-size: 12px;
-      padding: 0;
-    }
-
-    .slot.filled img {
-      width: 100%;
+    /* ───────── LAYOUT: everything fits in one screen ───────── */
+    .app {
       height: 100%;
-      object-fit: cover;
-      border-radius: var(--radius-md);
-    }
-
-    .slot.filled .champ-label {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(0, 0, 0, 0.7);
-      color: white;
-      font-size: 11px;
-      padding: 4px;
-      text-align: center;
-      font-weight: 600;
-    }
-
-    .slot.ban::after { content: " [BAN]"; font-size: 9px; opacity: 0.6; }
-
-    .recommendations-section {
-      background: var(--bg-primary);
-      border-radius: var(--radius-lg);
-      padding: 16px;
-      border: 1px solid var(--border);
-      margin-bottom: 20px;
-    }
-
-    .recs-title {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .recs-grid {
+      max-width: 1440px;
+      margin: 0 auto;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-rows: auto minmax(0, 1fr);
       gap: 10px;
     }
 
-    .rec-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 10px;
-      cursor: pointer;
-      transition: all 0.2s;
+    .main {
+      display: grid;
+      grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) minmax(200px, 250px);
+      grid-template-areas: "blue center red";
+      gap: 12px;
+      min-height: 0;
     }
 
-    .rec-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--text-secondary);
-    }
-
-    .rec-card.active {
-      background: var(--blue-bg);
-      border-color: var(--blue);
-    }
-
-    .rec-role {
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      color: var(--text-tertiary);
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-
-    .rec-champ {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-
-    .rec-stats {
-      font-size: 11px;
-      color: var(--text-secondary);
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .rec-pct {
-      font-weight: 600;
-      color: var(--blue);
-    }
-
-    .search-section {
+    /* ───────── TOP BAR: bans + phase ───────── */
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 12px;
       background: var(--bg-primary);
-      border-radius: var(--radius-lg);
-      padding: 16px;
       border: 1px solid var(--border);
-      margin-bottom: 20px;
+      border-radius: var(--radius-lg);
+      padding: 10px 14px;
     }
+
+    .bans { display: flex; gap: 6px; }
+    .bans.red { justify-content: flex-end; }
+
+    .ban-slot {
+      width: 40px; height: 40px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-strong);
+      position: relative;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+    .bans.blue .ban-slot { border-bottom: 2px solid var(--blue); }
+    .bans.red .ban-slot { border-bottom: 2px solid var(--red); }
+    .ban-gap { width: 10px; flex-shrink: 0; }
+
+    .ban-slot img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) brightness(0.65); }
+    .ban-slot.filled::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(135deg, transparent 46%, rgba(216,30,38,0.9) 47%, rgba(216,30,38,0.9) 53%, transparent 54%);
+    }
+    .ban-slot.active { border: 2px solid var(--text-primary); animation: pulse 1.2s ease-in-out infinite; }
+
+    .phase-center { text-align: center; min-width: 220px; }
+    .phase-center h1 { font-size: 13px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 1.5px; text-transform: uppercase; }
+    .turn { font-size: 20px; font-weight: 700; margin: 2px 0; }
+    .turn.blue { color: var(--blue); }
+    .turn.red { color: var(--red); }
+    .turn.done { color: var(--text-primary); }
+    .sub { font-size: 12px; color: var(--text-secondary); }
+
+    /* ───────── TEAM COLUMNS: picks sideways ───────── */
+    .team-col {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+    .team-col.blue { grid-area: blue; border-top: 3px solid var(--blue); }
+    .team-col.red { grid-area: red; border-top: 3px solid var(--red); }
+
+    .team-title { font-size: 14px; font-weight: 600; padding: 0 2px 4px; }
+    .team-col.blue .team-title { color: var(--blue); }
+    .team-col.red .team-title { color: var(--red); text-align: right; }
+
+    .pick-slot {
+      flex: 1;
+      min-height: 52px;
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-md);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-strong);
+      display: flex;
+      align-items: flex-end;
+    }
+    .pick-slot img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      object-position: 50% 18%;
+    }
+    .team-col.blue .pick-slot img { mask-image: linear-gradient(to left, transparent 0%, #000 55%); -webkit-mask-image: linear-gradient(to left, transparent 0%, #000 55%); }
+    .team-col.red .pick-slot img { mask-image: linear-gradient(to right, transparent 0%, #000 55%); -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 55%); }
+
+    .pick-info {
+      position: relative;
+      width: 100%;
+      padding: 8px 10px;
+      background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
+    }
+    .team-col.red .pick-info { text-align: right; }
+    .pick-name { font-size: 14px; font-weight: 700; }
+    .pick-role { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-secondary); text-transform: uppercase; }
+    .pick-slot.empty .pick-name { color: var(--text-tertiary); font-weight: 500; font-size: 12px; }
+
+    .pick-slot.active { border: 2px solid; animation: pulse 1.2s ease-in-out infinite; }
+    .team-col.blue .pick-slot.active { border-color: var(--blue); background: var(--blue-bg); }
+    .team-col.red .pick-slot.active { border-color: var(--red); background: var(--red-bg); }
+
+    @keyframes pulse { 50% { box-shadow: 0 0 0 3px rgba(255,255,255,0.08); } }
+
+    /* ───────── CENTER: champion pool + recommendations ───────── */
+    .center {
+      grid-area: center;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .pool {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .pool-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    .role-filters { display: flex; gap: 4px; }
+    .role-chip {
+      padding: 6px 10px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+      cursor: pointer;
+    }
+    .role-chip:hover { border-color: var(--text-secondary); }
+    .role-chip.on { background: var(--blue-bg); border-color: var(--blue); color: var(--text-primary); }
 
     #champ-search {
-      width: 100%;
-      padding: 10px 12px;
+      flex: 1; min-width: 160px;
+      padding: 8px 12px;
       border: 1px solid var(--border-strong);
       border-radius: var(--radius-md);
-      font-size: 14px;
+      font-size: 13px;
       background: var(--bg-secondary);
       color: var(--text-primary);
     }
-
-    #champ-search::placeholder {
-      color: var(--text-tertiary);
-    }
+    #champ-search::placeholder { color: var(--text-tertiary); }
 
     #champ-grid {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-      gap: 6px;
-      margin-top: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      grid-auto-rows: max-content;
+      gap: 8px;
+      padding-right: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--bg-tertiary) transparent;
     }
 
     .champ-btn {
-      padding: 8px;
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-md);
-      background: var(--bg-secondary);
-      color: var(--text-primary);
-      font-size: 12px;
-      font-weight: 500;
+      background: none; border: none; color: var(--text-secondary);
       cursor: pointer;
-      transition: all 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 500;
+      min-width: 0;
     }
-
-    .champ-btn:hover:not(.used) {
+    .champ-icon {
+      width: 100%; aspect-ratio: 1;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
       background: var(--bg-tertiary);
-      border-color: var(--text-secondary);
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--text-secondary);
+      transition: transform 0.12s, border-color 0.12s;
     }
+    .champ-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .champ-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .champ-btn:hover:not(.used) .champ-icon { transform: scale(1.06); border-color: var(--text-primary); }
+    .champ-btn:hover:not(.used) { color: var(--text-primary); }
+    .champ-btn.used { cursor: not-allowed; opacity: 0.3; }
+    .champ-btn.used .champ-icon img { filter: grayscale(1); }
+    .champ-btn.suggested .champ-icon { border: 2px solid #c8aa6e; }
 
-    .champ-btn.used {
-      opacity: 0.4;
-      cursor: not-allowed;
+    /* recommendations: where the runes usually are */
+    .recs {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 10px 12px;
     }
-
-    .controls {
-      display: flex;
-      gap: 10px;
-      margin-top: 12px;
-      justify-content: center;
-    }
-
+    .recs-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+    .recs-title { font-size: 13px; font-weight: 600; }
+    .controls { display: flex; gap: 6px; }
     .btn {
-      padding: 8px 16px;
+      padding: 6px 12px;
       border: 1px solid var(--border-strong);
       border-radius: var(--radius-md);
       background: var(--bg-secondary);
       color: var(--text-primary);
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 12px; font-weight: 500;
       cursor: pointer;
-      transition: all 0.15s;
     }
+    .btn:hover { background: var(--bg-tertiary); }
+    .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn.primary:hover { opacity: 0.9; }
 
-    .btn:hover {
-      background: var(--bg-tertiary);
+    .recs-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; min-height: 64px; }
+    .recs-empty { grid-column: 1 / -1; align-self: center; text-align: center; font-size: 12px; color: var(--text-tertiary); }
+
+    .rec-card {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 8px;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+      min-width: 0;
     }
+    .rec-card:hover { transform: translateY(-2px); border-color: var(--text-secondary); }
+    .rec-card .champ-icon { width: 48px; flex-shrink: 0; }
+    .rec-body { min-width: 0; flex: 1; }
+    .rec-role { font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.5px; }
+    .rec-champ { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rec-pct { font-size: 12px; color: var(--text-secondary); }
+    .rec-pct b { color: var(--blue); }
+    .rec-rank { font-size: 18px; font-weight: 800; color: var(--text-tertiary); }
 
-    .btn.primary {
-      background: var(--blue);
-      color: white;
-      border-color: var(--blue);
-    }
-
-    .btn.primary:hover {
-      opacity: 0.9;
-    }
-
-    .step-indicator {
-      text-align: center;
-      font-size: 12px;
-      color: var(--text-tertiary);
-      margin-top: 16px;
+    /* ───────── SMALL SCREENS: stack and scroll the page ───────── */
+    @media (max-width: 900px) {
+      body { overflow: auto; height: auto; padding: 10px; }
+      html { height: auto; }
+      .app { height: auto; }
+      .topbar { grid-template-columns: 1fr 1fr; grid-template-areas: "phase phase" "bb rb"; }
+      .phase-center { grid-area: phase; min-width: 0; }
+      .bans.blue { grid-area: bb; }
+      .bans.red { grid-area: rb; }
+      .ban-slot { width: 30px; height: 30px; }
+      .ban-gap { width: 4px; }
+      .bans { gap: 3px; }
+      .main { grid-template-columns: 1fr 1fr; grid-template-areas: "blue red" "center center"; }
+      .pick-slot { min-height: 46px; flex: none; }
+      .pick-name { font-size: 12px; }
+      .center { grid-template-rows: auto auto; }
+      #champ-grid { max-height: 45vh; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); }
+      .recs-grid { grid-template-columns: 1fr; }
+      .role-filters { width: 100%; }
+      .role-chip { flex: 1; padding: 6px 4px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>League of Legends - Draft Simulator</h1>
-    <div class="phase-label">
-      <span id="turn-display">Blue to pick</span> &bullet;
-      <span id="phase-display">Ban Phase</span>
-    </div>
+  <div class="app">
 
-    <!-- RECOMMENDATIONS (for active team/step) -->
-    <div class="recommendations-section" id="recommendations-section">
-      <div class="recs-title" id="recs-title-text">Model Suggestions by Role</div>
-      <div class="recs-grid" id="recs-grid"></div>
-    </div>
-
-    <!-- SEARCH & PICK -->
-    <div class="search-section">
-      <input type="text" id="champ-search" placeholder="Search champion... (type name or press Escape to clear)" />
-      <div id="champ-grid"></div>
-      <div class="controls">
-        <button class="btn primary" onclick="undo()">Undo</button>
-        <button class="btn" onclick="reset()">Reset Draft</button>
+    <!-- TOP: bans + phase -->
+    <header class="topbar">
+      <div class="bans blue" id="blue-bans"></div>
+      <div class="phase-center">
+        <h1>Draft Simulator</h1>
+        <div class="turn" id="turn-display">Blue to ban</div>
+        <div class="sub"><span id="phase-display"></span> · <span id="step-indicator">Step 1 / 20</span></div>
       </div>
-    </div>
+      <div class="bans red" id="red-bans"></div>
+    </header>
 
-    <!-- DRAFT STATE -->
-    <div class="draft-wrapper">
-      <!-- BLUE TEAM -->
-      <div class="team-section blue">
+    <div class="main">
+      <!-- BLUE picks -->
+      <section class="team-col blue">
         <div class="team-title">Blue Team</div>
+        <div id="blue-picks" style="display:contents"></div>
+      </section>
 
-        <div class="phase-group">
-          <div class="phase-name">Bans (1-3)</div>
-          <div class="slot-container" id="blue-bans"></div>
+      <!-- CENTER: champion pool + recommendations -->
+      <section class="center">
+        <div class="pool">
+          <div class="pool-head">
+            <input type="text" id="champ-search" placeholder="Search champion..." autocomplete="off" />
+            <div class="role-filters" id="role-filters"></div>
+          </div>
+          <div id="champ-grid"></div>
         </div>
 
-        <div class="phase-group">
-          <div class="phase-name">Picks (1-5)</div>
-          <div class="slot-container" id="blue-picks"></div>
+        <div class="recs" id="recommendations-section">
+          <div class="recs-head">
+            <div class="recs-title" id="recs-title-text">Model suggestions</div>
+            <div class="controls">
+              <button class="btn primary" onclick="undo()">Undo</button>
+              <button class="btn" onclick="reset()">Reset</button>
+            </div>
+          </div>
+          <div class="recs-grid" id="recs-grid"></div>
         </div>
-      </div>
+      </section>
 
-      <!-- RED TEAM -->
-      <div class="team-section red">
+      <!-- RED picks -->
+      <section class="team-col red">
         <div class="team-title">Red Team</div>
-
-        <div class="phase-group">
-          <div class="phase-name">Bans (1-3)</div>
-          <div class="slot-container" id="red-bans"></div>
-        </div>
-
-        <div class="phase-group">
-          <div class="phase-name">Picks (1-5)</div>
-          <div class="slot-container" id="red-picks"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="step-indicator">
-      <span id="step-indicator">Step 0 / 20</span>
+        <div id="red-picks" style="display:contents"></div>
+      </section>
     </div>
   </div>
 
@@ -401,42 +365,50 @@
     // loaded from /api/champions (same vocabulary as the model)
     let CHAMPIONS = [];
     let CHAMP_ROLES = {};
+
     // Data Dragon image ids that differ from Riot match-v5 names
     const IMG_ID = { FiddleSticks: "Fiddlesticks" };
-    const imgUrl = c => `https://ddragon.leagueoflegends.com/cdn/img/champion/loading/${IMG_ID[c] || c}_0.jpg`;
+    const DD = "https://ddragon.leagueoflegends.com/cdn/img/champion";
+    let DD_VERSION = null; // latest Data Dragon version, fetched at startup
+    const splashUrl = c => [`${DD}/loading/${IMG_ID[c] || c}_0.jpg`];
+    // square icon (versioned) first, tile as backup
+    const tileUrl = c => [
+      ...(DD_VERSION ? [`https://ddragon.leagueoflegends.com/cdn/${DD_VERSION}/img/champion/${IMG_ID[c] || c}.png`] : []),
+      `${DD}/tiles/${IMG_ID[c] || c}_0.jpg`,
+    ];
 
     const DRAFT_ORDER = [
-      // Ban round 1 (steps 0-4)
-      { step: 0,  team: "blue", type: "ban", idx: 0, phaseNum: 1 },
-      { step: 1,  team: "red",  type: "ban", idx: 0, phaseNum: 1 },
-      { step: 2,  team: "blue", type: "ban", idx: 1, phaseNum: 1 },
-      { step: 3,  team: "red",  type: "ban", idx: 1, phaseNum: 1 },
-      { step: 4,  team: "blue", type: "ban", idx: 2, phaseNum: 1 },
-      { step: 5,  team: "red",  type: "ban", idx: 2, phaseNum: 1 },
-      // Pick round 1 (steps 6-10)
-      { step: 6,  team: "blue", type: "pick", idx: 0, roleIdx: 0, phaseNum: 2 },
-      { step: 7,  team: "red",  type: "pick", idx: 0, roleIdx: 0, phaseNum: 2 },
-      { step: 8,  team: "red",  type: "pick", idx: 1, roleIdx: 1, phaseNum: 2 },
-      { step: 9,  team: "blue", type: "pick", idx: 1, roleIdx: 1, phaseNum: 2 },
-      { step: 10, team: "blue", type: "pick", idx: 2, roleIdx: 2, phaseNum: 2 },
-      // Ban round 2 (steps 11-14)
-      { step: 11, team: "red",  type: "ban", idx: 3, phaseNum: 3 },
-      { step: 12, team: "blue", type: "ban", idx: 3, phaseNum: 3 },
-      { step: 13, team: "red",  type: "ban", idx: 4, phaseNum: 3 },
-      { step: 14, team: "blue", type: "ban", idx: 4, phaseNum: 3 },
-      // Pick round 2 (steps 15-20)
-      { step: 15, team: "red",  type: "pick", idx: 2, roleIdx: 2, phaseNum: 4 },
-      { step: 16, team: "blue", type: "pick", idx: 3, roleIdx: 3, phaseNum: 4 },
-      { step: 17, team: "blue", type: "pick", idx: 4, roleIdx: 4, phaseNum: 4 },
-      { step: 18, team: "red",  type: "pick", idx: 3, roleIdx: 3, phaseNum: 4 },
-      { step: 19, team: "red",  type: "pick", idx: 4, roleIdx: 4, phaseNum: 4 },
+      // Ban round 1
+      { step: 0,  team: "blue", type: "ban", idx: 0 },
+      { step: 1,  team: "red",  type: "ban", idx: 0 },
+      { step: 2,  team: "blue", type: "ban", idx: 1 },
+      { step: 3,  team: "red",  type: "ban", idx: 1 },
+      { step: 4,  team: "blue", type: "ban", idx: 2 },
+      { step: 5,  team: "red",  type: "ban", idx: 2 },
+      // Pick round 1
+      { step: 6,  team: "blue", type: "pick", idx: 0 },
+      { step: 7,  team: "red",  type: "pick", idx: 0 },
+      { step: 8,  team: "red",  type: "pick", idx: 1 },
+      { step: 9,  team: "blue", type: "pick", idx: 1 },
+      { step: 10, team: "blue", type: "pick", idx: 2 },
+      // Ban round 2
+      { step: 11, team: "red",  type: "ban", idx: 3 },
+      { step: 12, team: "blue", type: "ban", idx: 3 },
+      { step: 13, team: "red",  type: "ban", idx: 4 },
+      { step: 14, team: "blue", type: "ban", idx: 4 },
+      // Pick round 2
+      { step: 15, team: "red",  type: "pick", idx: 2 },
+      { step: 16, team: "blue", type: "pick", idx: 3 },
+      { step: 17, team: "blue", type: "pick", idx: 4 },
+      { step: 18, team: "red",  type: "pick", idx: 3 },
+      { step: 19, team: "red",  type: "pick", idx: 4 },
     ];
 
     const PHASE_NAMES = [
-      "Blue ban 1", "Red ban 1", "Blue ban 2", "Red ban 2", "Blue ban 3", "Red ban 3",
-      "Blue pick 1", "Red pick 1", "Red pick 2", "Blue pick 2", "Blue pick 3",
-      "Red ban 4", "Blue ban 4", "Red ban 5", "Blue ban 5",
-      "Red pick 3", "Blue pick 4", "Blue pick 5", "Red pick 4", "Red pick 5"
+      "Ban phase 1", "Ban phase 1", "Ban phase 1", "Ban phase 1", "Ban phase 1", "Ban phase 1",
+      "Pick phase 1", "Pick phase 1", "Pick phase 1", "Pick phase 1", "Pick phase 1",
+      "Ban phase 2", "Ban phase 2", "Ban phase 2", "Ban phase 2",
+      "Pick phase 2", "Pick phase 2", "Pick phase 2", "Pick phase 2", "Pick phase 2"
     ];
 
     let state = {
@@ -446,24 +418,56 @@
       recs: {},
       history: []
     };
+    let roleFilter = null;
 
-    // api calls
-    async function getRecommendations() {
+    // image with text fallback (if Data Dragon is unreachable or the id differs)
+    function champImg(name, urls) {
+      const img = document.createElement("img");
+      let i = 0;
+      img.src = urls[0];
+      img.alt = name;
+      img.loading = "lazy";
+      img.onerror = () => {
+        i++;
+        if (i < urls.length) img.src = urls[i];
+        else img.replaceWith(document.createTextNode(name.slice(0, 3)));
+      };
+      return img;
+    }
+
+    // same rule as the backend: each pick on a distinct role it can play, main roles preferred
+    function assignRoles(team) {
+      team = team.filter(Boolean);
+      let best = null, bestCost = Infinity;
+      const used = new Array(ROLES.length).fill(false);
+      const cur = {};
+      (function rec(i, cost) {
+        if (cost >= bestCost) return;
+        if (i === team.length) { best = { ...cur }; bestCost = cost; return; }
+        const playable = CHAMP_ROLES[team[i]] || ROLES;
+        for (let r = 0; r < ROLES.length; r++) {
+          const k = playable.indexOf(ROLES[r]);
+          if (used[r] || k < 0) continue;
+          used[r] = true; cur[team[i]] = ROLES[r];
+          rec(i + 1, cost + k);
+          used[r] = false; delete cur[team[i]];
+        }
+      })(0, 0);
+      return best || {};
+    }
+
+    // ─────────────────────────────────────────
+    //  API
+    // ─────────────────────────────────────────
+    async function fetchRecommendations(step) {
+      if (step >= DRAFT_ORDER.length) return [];
       try {
         const response = await fetch("/api/recommend", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            step: state.step,
-            draft: state
-          })
+          body: JSON.stringify({ step, draft: { blue: state.blue, red: state.red } })
         });
-
-        if (!response.ok) {
-          console.error("API error:", response.status);
-          return [];
-        }
-
+        if (!response.ok) return [];
         const data = await response.json();
         return data.recommendations || [];
       } catch (error) {
@@ -472,65 +476,34 @@
       }
     }
 
-    async function loadRecommendationsForCurrentState() {
-      
-      if (state.step >= DRAFT_ORDER.length) return [];
-      
-      try {
-        const response = await fetch("/api/recommend", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            step: state.step,
-            draft: state
-          })
-        });
-
-        if (!response.ok) return [];
-        const data = await response.json();
-        return data.recommendations || [];
-      } catch (error) {
-        return [];
-      }
-    }
-
-    // actions
+    // ─────────────────────────────────────────
+    //  ACTIONS
+    // ─────────────────────────────────────────
     function getUsedChampions() {
       const used = new Set();
-      state.blue.picks.forEach(c => { if (c) used.add(c); });
-      state.blue.bans.forEach(c => { if (c) used.add(c); });
-      state.red.picks.forEach(c => { if (c) used.add(c); });
-      state.red.bans.forEach(c => { if (c) used.add(c); });
+      ["blue", "red"].forEach(t => {
+        state[t].picks.forEach(c => c && used.add(c));
+        state[t].bans.forEach(c => c && used.add(c));
+      });
       return used;
     }
 
-    async function selectChampion(champ) {
-      const used = getUsedChampions();
-      if (used.has(champ)) return;
-
+    function selectChampion(champ) {
+      if (getUsedChampions().has(champ)) return;
       if (state.step >= DRAFT_ORDER.length) return;
 
-      // save the state
       state.history.push({
         step: state.step,
         blue: JSON.parse(JSON.stringify(state.blue)),
-        red: JSON.parse(JSON.stringify(state.red)),
-        recs: JSON.parse(JSON.stringify(state.recs))
+        red: JSON.parse(JSON.stringify(state.red))
       });
 
       const order = DRAFT_ORDER[state.step];
-
-      if (order.type === "ban") {
-        state[order.team].bans[order.idx] = champ;
-      } else {
-        state[order.team].picks[order.idx] = champ;
-      }
+      if (order.type === "ban") state[order.team].bans[order.idx] = champ;
+      else state[order.team].picks[order.idx] = champ;
 
       state.step++;
-
-      // recharge so we have update
       state.recs = {};
-
       render();
     }
 
@@ -540,171 +513,159 @@
       state.step = snap.step;
       state.blue = snap.blue;
       state.red = snap.red;
-      state.recs = snap.recs;
+      state.recs = {};
       render();
     }
 
     function reset() {
-      state = {
-        step: 0,
-        blue: { picks: [], bans: [] },
-        red: { picks: [], bans: [] },
-        recs: {},
-        history: []
-      };
+      state = { step: 0, blue: { picks: [], bans: [] }, red: { picks: [], bans: [] }, recs: {}, history: [] };
       document.getElementById("champ-search").value = "";
+      roleFilter = null;
       render();
     }
 
-    // render
+    // ─────────────────────────────────────────
+    //  RENDER
+    // ─────────────────────────────────────────
+    const current = () => state.step < DRAFT_ORDER.length ? DRAFT_ORDER[state.step] : null;
+
     function renderBans(team) {
       const el = document.getElementById(`${team}-bans`);
       el.innerHTML = "";
-      
+      const order = current();
       for (let i = 0; i < 5; i++) {
+        if (i === 3) { const gap = document.createElement("div"); gap.className = "ban-gap"; el.appendChild(gap); }
         const slot = document.createElement("div");
-        slot.className = "slot";
-
-        const isCurrentBan = state.step < DRAFT_ORDER.length &&
-          DRAFT_ORDER[state.step].team === team &&
-          DRAFT_ORDER[state.step].type === "ban" &&
-          DRAFT_ORDER[state.step].idx === i;
-
-        if (isCurrentBan) {
+        slot.className = "ban-slot";
+        const champ = state[team].bans[i];
+        if (champ) {
+          slot.classList.add("filled");
+          slot.title = champ;
+          slot.appendChild(champImg(champ, tileUrl(champ)));
+        } else if (order && order.team === team && order.type === "ban" && order.idx === i) {
           slot.classList.add("active");
         }
-
-        if (state[team].bans[i]) {
-          const champ = state[team].bans[i];
-          const img = document.createElement("img");
-          img.src = imgUrl(champ);
-          img.alt = champ;
-          img.onerror = () => img.style.opacity = "0.3";
-          
-          const label = document.createElement("div");
-          label.className = "champ-label";
-          label.textContent = champ;
-          
-          slot.appendChild(img);
-          slot.appendChild(label);
-          slot.classList.add("filled", "ban");
-        } else {
-          slot.textContent = i + 1;
-        }
-
         el.appendChild(slot);
       }
     }
 
-    function renderPicksForTeam(team) {
+    function renderPicks(team) {
       const el = document.getElementById(`${team}-picks`);
       el.innerHTML = "";
-
+      const order = current();
+      const roles = assignRoles(state[team].picks);
       for (let i = 0; i < 5; i++) {
         const slot = document.createElement("div");
-        slot.className = "slot";
-
-        const isCurrentPick = state.step < DRAFT_ORDER.length &&
-          DRAFT_ORDER[state.step].team === team &&
-          DRAFT_ORDER[state.step].type === "pick" &&
-          DRAFT_ORDER[state.step].idx === i;
-
-        if (isCurrentPick) {
-          slot.classList.add("active");
-        }
-
-        if (state[team].picks[i]) {
-          const champ = state[team].picks[i];
-          const img = document.createElement("img");
-          img.src = imgUrl(champ);
-          img.alt = champ;
-          img.onerror = () => img.style.opacity = "0.3";
-          
-          const label = document.createElement("div");
-          label.className = "champ-label";
-          label.textContent = champ;
-          
-          slot.appendChild(img);
-          slot.appendChild(label);
-          slot.classList.add("filled");
+        slot.className = "pick-slot";
+        const champ = state[team].picks[i];
+        const info = document.createElement("div");
+        info.className = "pick-info";
+        if (champ) {
+          slot.appendChild(champImg(champ, splashUrl(champ)));
+          info.innerHTML = `<div class="pick-role">${roles[champ] || ""}</div><div class="pick-name">${champ}</div>`;
         } else {
-          slot.textContent = `Pick ${i + 1}`;
+          slot.classList.add("empty");
+          const isActive = order && order.team === team && order.type === "pick" && order.idx === i;
+          if (isActive) slot.classList.add("active");
+          info.innerHTML = `<div class="pick-name">${isActive ? "Picking..." : `Pick ${i + 1}`}</div>`;
         }
-
+        slot.appendChild(info);
         el.appendChild(slot);
       }
+    }
+
+    function renderRoleFilters() {
+      const el = document.getElementById("role-filters");
+      el.innerHTML = "";
+      ["ALL", ...ROLES].forEach(r => {
+        const b = document.createElement("button");
+        const on = (r === "ALL" && !roleFilter) || r === roleFilter;
+        b.className = "role-chip" + (on ? " on" : "");
+        b.textContent = r;
+        b.onclick = () => { roleFilter = r === "ALL" ? null : r; renderRoleFilters(); renderChampGrid(); };
+        el.appendChild(b);
+      });
+    }
+
+    function renderChampGrid() {
+      const filter = document.getElementById("champ-search").value.toLowerCase();
+      const used = getUsedChampions();
+      const suggested = new Set((state.recs[state.step] || []).map(r => r.name));
+      const el = document.getElementById("champ-grid");
+      el.innerHTML = "";
+
+      CHAMPIONS
+        .filter(c => !filter || c.toLowerCase().includes(filter))
+        .filter(c => !roleFilter || (CHAMP_ROLES[c] || []).includes(roleFilter))
+        .forEach(c => {
+          const btn = document.createElement("button");
+          btn.className = "champ-btn" + (used.has(c) ? " used" : "") + (suggested.has(c) ? " suggested" : "");
+          btn.title = `${c} · ${(CHAMP_ROLES[c] || []).join(" / ")}`;
+          const icon = document.createElement("div");
+          icon.className = "champ-icon";
+          icon.appendChild(champImg(c, tileUrl(c)));
+          const name = document.createElement("div");
+          name.className = "champ-name";
+          name.textContent = c;
+          btn.append(icon, name);
+          btn.onclick = () => selectChampion(c);
+          el.appendChild(btn);
+        });
     }
 
     function renderRecommendations() {
       const el = document.getElementById("recs-grid");
+      const title = document.getElementById("recs-title-text");
+      const order = current();
 
-      if (state.step >= DRAFT_ORDER.length) {
-        document.getElementById("recommendations-section").style.display = "none";
+      if (!order) {
+        title.textContent = "Draft complete";
+        el.innerHTML = "<div class='recs-empty'>Draft complete. Undo to explore other picks, or Reset.</div>";
         return;
       }
 
-      document.getElementById("recommendations-section").style.display = "block";
+      const teamName = order.team === "blue" ? "Blue" : "Red";
+      title.textContent = order.type === "pick"
+        ? `Best picks for ${teamName}`
+        : `Suggested bans for ${teamName} (enemy's best picks)`;
 
-      
-      if (!state.recs[state.step]) {
-        el.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: var(--text-tertiary);'>Calculating best picks...</p>";
-        
-        const askedStep = state.step;
-        loadRecommendationsForCurrentState().then(recs => {
-          state.recs[askedStep] = recs;
-          // ignore late answers if the user already moved on
-          if (state.step === askedStep) renderRecommendationsContent(el, recs);
+      const step = state.step;
+      if (!state.recs[step]) {
+        el.innerHTML = "<div class='recs-empty'>Calculating best picks...</div>";
+        fetchRecommendations(step).then(recs => {
+          state.recs[step] = recs;
+          if (state.step === step) { renderRecsContent(el, recs, order); renderChampGrid(); }
         });
         return;
       }
-
-      const recs = state.recs[state.step] || [];
-      renderRecommendationsContent(el, recs);
+      renderRecsContent(el, state.recs[step], order);
     }
 
-    function renderRecommendationsContent(el, recs) {
+    function renderRecsContent(el, recs, order) {
       el.innerHTML = "";
-
       if (!recs || recs.length === 0) {
-        el.innerHTML = "<p style='grid-column: 1 / -1; text-align: center; color: var(--text-tertiary);'>No valid recommendations</p>";
+        el.innerHTML = "<div class='recs-empty'>No valid recommendations</div>";
         return;
       }
-
-      recs.forEach(rec => {
+      recs.forEach((rec, i) => {
         const card = document.createElement("div");
         card.className = "rec-card";
         card.onclick = () => selectChampion(rec.name);
-
-        const order = DRAFT_ORDER[state.step];
-        const role = (order && order.type === "ban") ? `BAN · ${rec.role || "?"}` : (rec.role || "?");
-        const html = `
+        const icon = document.createElement("div");
+        icon.className = "champ-icon";
+        icon.appendChild(champImg(rec.name, tileUrl(rec.name)));
+        const body = document.createElement("div");
+        body.className = "rec-body";
+        const role = order.type === "ban" ? `Ban · ${rec.role || "?"}` : (rec.role || "?");
+        body.innerHTML = `
           <div class="rec-role">${role}</div>
           <div class="rec-champ">${rec.name}</div>
-          <div class="rec-stats">
-            <span>Score:</span>
-            <span class="rec-pct">${rec.pct}%</span>
-          </div>
-        `;
-        card.innerHTML = html;
+          <div class="rec-pct">Score <b>${rec.pct}%</b></div>`;
+        const rank = document.createElement("div");
+        rank.className = "rec-rank";
+        rank.textContent = `#${i + 1}`;
+        card.append(icon, body, rank);
         el.appendChild(card);
-      });
-    }
-
-    function renderChampGrid(filter = "") {
-      const used = getUsedChampions();
-      const el = document.getElementById("champ-grid");
-      el.innerHTML = "";
-
-      const filtered = CHAMPIONS.filter(c =>
-        !filter || c.toLowerCase().includes(filter.toLowerCase())
-      );
-
-      filtered.forEach(c => {
-        const btn = document.createElement("button");
-        btn.className = "champ-btn" + (used.has(c) ? " used" : "");
-        btn.textContent = c;
-        btn.onclick = () => selectChampion(c);
-        el.appendChild(btn);
       });
     }
 
@@ -712,75 +673,55 @@
       const el = document.getElementById("turn-display");
       const phase = document.getElementById("phase-display");
       const si = document.getElementById("step-indicator");
-      const recsTitle = document.getElementById("recs-title-text");
-
-      if (state.step >= DRAFT_ORDER.length) {
-        el.textContent = "Draft Complete";
-        phase.textContent = "All picks and bans finished";
+      const order = current();
+      if (!order) {
+        el.textContent = "Draft complete";
+        el.className = "turn done";
+        phase.textContent = "All picks and bans done";
         si.textContent = "Step 20 / 20";
-        recsTitle.textContent = "Draft Complete!";
         return;
       }
-
-      const order = DRAFT_ORDER[state.step];
-      const teamName = order.team.charAt(0).toUpperCase() + order.team.slice(1);
-      const actionType = order.type.charAt(0).toUpperCase() + order.type.slice(1);
-
+      const teamName = order.team === "blue" ? "Blue" : "Red";
       el.textContent = `${teamName} to ${order.type}`;
-      phase.textContent = PHASE_NAMES[state.step] || `Step ${state.step + 1}`;
+      el.className = `turn ${order.team}`;
+      phase.textContent = PHASE_NAMES[state.step];
       si.textContent = `Step ${state.step + 1} / 20`;
-      
-      
-      if (order.type === "pick") {
-        recsTitle.textContent = `Suggestions for ${teamName} (Next ${order.type})`;
-      } else {
-        
-        let nextPickStep = state.step + 1;
-        while (nextPickStep < DRAFT_ORDER.length && DRAFT_ORDER[nextPickStep].type !== "pick") {
-          nextPickStep++;
-        }
-        if (nextPickStep < DRAFT_ORDER.length) {
-          const nextTeam = DRAFT_ORDER[nextPickStep].team.charAt(0).toUpperCase() + DRAFT_ORDER[nextPickStep].team.slice(1);
-          recsTitle.textContent = `Preparing for ${nextTeam}'s next pick...`;
-        } else {
-          recsTitle.textContent = "Model Suggestions";
-        }
-      }
     }
 
     function render() {
-      
       renderBans("blue");
       renderBans("red");
-
-      
-      renderPicksForTeam("blue");
-      renderPicksForTeam("red");
-
-      
-      renderRecommendations();
-
-      
-      renderChampGrid(document.getElementById("champ-search").value);
-
-    
+      renderPicks("blue");
+      renderPicks("red");
       renderTurn();
+      renderRecommendations();
+      renderChampGrid();
     }
 
-    
-    document.getElementById("champ-search").addEventListener("input", e => {
-      renderChampGrid(e.target.value);
-    });
-
-    document.getElementById("champ-search").addEventListener("keydown", e => {
-      if (e.key === "Escape") {
-        e.target.value = "";
-        renderChampGrid("");
+    // ─────────────────────────────────────────
+    //  EVENTS & INIT
+    // ─────────────────────────────────────────
+    const search = document.getElementById("champ-search");
+    search.addEventListener("input", renderChampGrid);
+    search.addEventListener("keydown", e => {
+      if (e.key === "Escape") { search.value = ""; renderChampGrid(); }
+      if (e.key === "Enter") {
+        // Enter picks the first visible available champion
+        const first = document.querySelector("#champ-grid .champ-btn:not(.used)");
+        if (first) { first.click(); search.value = ""; renderChampGrid(); }
       }
     });
+    document.addEventListener("keydown", e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); undo(); }
+    });
 
-    
     (async () => {
+      try {
+        const v = await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
+        DD_VERSION = (await v.json())[0];
+      } catch (e) {
+        console.warn("Data Dragon version unavailable, using tiles");
+      }
       try {
         const res = await fetch("/api/champions");
         const list = await res.json();
@@ -789,6 +730,7 @@
       } catch (e) {
         console.error("Could not load champions", e);
       }
+      renderRoleFilters();
       render();
     })();
   </script>
